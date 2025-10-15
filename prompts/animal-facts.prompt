@@ -1,0 +1,8 @@
+---
+model: vertexai/gemini-1.5-flash
+input:
+    schema:
+        animal: string
+---
+
+Give me 10 fun facts about {{animal}}. Return the results as HTML without markdown backticks.

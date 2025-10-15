@@ -30,6 +30,7 @@
   "dependencies": {
     "@genkit-ai/ai": "^1.21.0",
     "@genkit-ai/vertexai": "^1.21.0",
+    "@google/generative-ai": "^0.24.1",
     "express": "^5.1.0"
   }
 }

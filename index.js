@@ -3,11 +3,12 @@ const app = express();
 
 import { genkit } from 'genkit';
 import { vertexAI } from '@genkit-ai/vertexai';
+import { googleAI } from "@genkit-ai/google-genai";
+import 'dotenv/config';
+
 
 const ai = genkit({
-    plugins: [
-        vertexAI({ location: 'us-central1' }),
-    ],
+    plugins: [googleAI()],
 });
 
 app.get('/', async (req, res) => {

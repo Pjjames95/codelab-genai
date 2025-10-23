@@ -8,22 +8,38 @@ const ai = genkit({
   plugins: [googleAI()],
 });
 
-// This will now work because the prompt file exists
-const storyGeneratorPrompt = ai.prompt('story-generator');
+// Use definePrompt instead of external prompt files for cloud deployment
+const storyGeneratorPrompt = ai.definePrompt({
+  name: 'story-generator',
+  model: 'googleai/gemini-2.5-flash',
+  input: {
+    schema: {
+      character: 'string',
+      setting: 'string'
+    }
+  },
+  prompt: `Write a short, fun story (2-3 paragraphs) about {{character}} in {{setting}}.
+Keep it light-hearted and suitable for all ages.`
+});
 
 app.get('/', async (req, res) => {
   try {
+    console.log('=== STARTING REQUEST ===');
     const character = req.query.character || 'a friendly robot';
     const setting = req.query.setting || 'a magical library';
     
-    console.log('Generating story with parameters:');
-    console.log(`Character: ${character}`);
-    console.log(`Setting: ${setting}`);
+    console.log('Environment check:');
+    console.log('- GOOGLE_API_KEY exists:', !!process.env.GOOGLE_API_KEY);
+    console.log('- GOOGLE_API_KEY length:', process.env.GOOGLE_API_KEY?.length);
+    console.log('- Character:', character);
+    console.log('- Setting:', setting);
 
+    console.log('Calling storyGeneratorPrompt...');
     const response = await storyGeneratorPrompt({
       character: character,
       setting: setting
     });
+    console.log('Successfully got response from AI');
 
     const html = `
       <html>
@@ -63,14 +79,31 @@ app.get('/', async (req, res) => {
     `;
 
     res.send(html);
+    console.log('=== REQUEST COMPLETED SUCCESSFULLY ===');
 
   } catch (error) {
-    console.error('Error generating story:', error);
+    console.error('=== FULL ERROR DETAILS ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error status:', error.status);
+    console.error('Error stack:', error.stack);
+    
+    // Check for specific Genkit/Google AI errors
+    if (error.details) {
+      console.error('Error details:', error.details);
+    }
+    if (error.cause) {
+      console.error('Error cause:', error.cause);
+    }
+
     res.status(500).send(`
       <html>
         <body>
-          <h1>Error</h1>
-          <p>${error.message}</p>
+          <h1>Internal Server Error</h1>
+          <p><strong>Error:</strong> ${error.message}</p>
+          <p><strong>Code:</strong> ${error.code || 'N/A'}</p>
+          <p>Check the cloud logs for full details.</p>
           <a href="/">Try Again</a>
         </body>
       </html>
@@ -78,69 +111,28 @@ app.get('/', async (req, res) => {
   }
 });
 
-// API endpoint for JSON responses
-app.get('/api/story', async (req, res) => {
-  try {
-    const { character = 'a friendly robot', setting = 'a magical library' } = req.query;
-
-    const response = await storyGeneratorPrompt({
-      character: character,
-      setting: setting
-    });
-
-    res.json({
-      success: true,
-      character,
-      setting,
-      story: response.text
-    });
-
-  } catch (error) {
-    console.error('Error generating story:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
-// Batch stories endpoint
-app.get('/api/batch-stories', async (req, res) => {
-  try {
-    const stories = [
-      { character: 'a curious cat', setting: 'a space station' },
-      { character: 'a young wizard', setting: 'a bustling marketplace' },
-      { character: 'a brave explorer', setting: 'an underwater city' },
-    ];
-
-    const results = [];
-
-    for (const story of stories) {
-      const response = await storyGeneratorPrompt(story);
-      results.push({
-        ...story,
-        story: response.text
-      });
-    }
-
-    res.json({
-      success: true,
-      stories: results
-    });
-
-  } catch (error) {
-    console.error('Error generating batch stories:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+// Test endpoint without AI
+app.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Server is running',
+    apiKeyExists: !!process.env.GOOGLE_API_KEY,
+    apiKeyLength: process.env.GOOGLE_API_KEY?.length
+  });
 });
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
-  console.log(`Story Generator Server running on http://localhost:${port}`);
-  console.log(`Homepage: http://localhost:${port}/`);
-  console.log(`API endpoint: http://localhost:${port}/api/story?character=a friendly robot&setting=a magical library`);
-  console.log(`Batch stories: http://localhost:${port}/api/batch-stories`);
+  console.log(`Story Generator Server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Health check: http://localhost:${port}/health`);
+  console.log(`Test endpoint: http://localhost:${port}/test`);
 });
